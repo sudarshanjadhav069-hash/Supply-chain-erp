@@ -8,111 +8,153 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("🕐 Digital Clock - Multi Timezone")
-st.markdown("Real-time clock displaying current time across different time zones.")
+# Custom CSS for styling
+st.markdown("""
+    <style>
+    .clock-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+        padding: 20px;
+    }
+    .timezone-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 25px;
+        color: white;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        min-height: 150px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    .timezone-name {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 10px;
+        opacity: 0.9;
+    }
+    .time-display {
+        font-size: 48px;
+        font-weight: bold;
+        font-family: 'Courier New', monospace;
+        margin: 15px 0;
+        letter-spacing: 2px;
+    }
+    .date-display {
+        font-size: 14px;
+        opacity: 0.85;
+        margin-bottom: 8px;
+    }
+    .utc-offset {
+        font-size: 12px;
+        opacity: 0.8;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-# Define time zones
-timezones = {
-    "UTC": "UTC",
+st.title("🕐 Digital Clock - Multi Timezone")
+st.markdown("View current time across different timezones around the world")
+
+# Sidebar controls
+st.sidebar.header("⚙️ Settings")
+
+# Preset timezones
+preset_timezones = {
     "New York": "America/New_York",
-    "Los Angeles": "America/Los_Angeles",
     "London": "Europe/London",
+    "Paris": "Europe/Paris",
     "Tokyo": "Asia/Tokyo",
     "Sydney": "Australia/Sydney",
-    "Mumbai": "Asia/Kolkata",
     "Dubai": "Asia/Dubai",
     "Singapore": "Asia/Singapore",
     "Hong Kong": "Asia/Hong_Kong",
-    "Berlin": "Europe/Berlin",
-    "Paris": "Europe/Paris",
+    "Mumbai": "Asia/Kolkata",
+    "Bangkok": "Asia/Bangkok",
+    "Los Angeles": "America/Los_Angeles",
+    "Toronto": "America/Toronto",
 }
 
-# Add custom timezone selector
-col1, col2 = st.columns([3, 1])
-with col1:
-    st.write("### Select Additional Timezones")
-with col2:
-    if st.button("🔄 Refresh"):
-        st.rerun()
+# Allow users to select preset or custom timezones
+use_preset = st.sidebar.checkbox("Use Preset Timezones", value=True)
 
-# Allow user to add custom timezones
-all_timezones = pytz.all_timezones
-selected_timezones = st.multiselect(
-    "Choose timezones to display:",
-    options=all_timezones,
-    default=list(timezones.values()),
-    help="Select one or more timezones to display"
-)
-
-st.divider()
-
-# Display clocks
-if selected_timezones:
-    # Get current UTC time
-    utc_now = datetime.now(pytz.UTC)
-    
-    # Create columns for displaying clocks
-    num_cols = 3
-    cols = st.columns(num_cols)
-    
-    for idx, tz_name in enumerate(selected_timezones):
-        col = cols[idx % num_cols]
-        
-        with col:
-            try:
-                # Get timezone object
-                tz = pytz.timezone(tz_name)
-                # Convert UTC time to target timezone
-                local_time = utc_now.astimezone(tz)
-                
-                # Format the display
-                time_str = local_time.strftime("%H:%M:%S")
-                date_str = local_time.strftime("%A, %B %d, %Y")
-                offset = local_time.strftime("%z")
-                
-                # Create a nice card display
-                st.markdown(f"""
-                <div style="
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    padding: 20px;
-                    border-radius: 10px;
-                    text-align: center;
-                    color: white;
-                    margin: 10px 0;
-                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                ">
-                    <h3 style="margin: 0; font-size: 18px; margin-bottom: 10px;">{tz_name}</h3>
-                    <div style="font-size: 36px; font-weight: bold; font-family: 'Courier New'; letter-spacing: 2px; margin: 15px 0;">
-                        {time_str}
-                    </div>
-                    <div style="font-size: 14px; margin-bottom: 8px;">{date_str}</div>
-                    <div style="font-size: 12px; opacity: 0.9;">UTC {offset[:3]}:{offset[3:]}</div>
-                </div>
-                """, unsafe_allow_html=True)
-            except Exception as e:
-                st.error(f"Error loading timezone {tz_name}: {str(e)}")
+if use_preset:
+    selected_timezones = st.sidebar.multiselect(
+        "Select Timezones:",
+        list(preset_timezones.keys()),
+        default=["New York", "London", "Tokyo", "Sydney"]
+    )
+    timezones = {name: preset_timezones[name] for name in selected_timezones}
 else:
-    st.info("👆 Select at least one timezone to display the clock")
+    # Get all available timezones
+    all_timezones = pytz.all_timezones
+    custom_selection = st.sidebar.multiselect(
+        "Search and Select Timezones:",
+        all_timezones,
+        default=["America/New_York", "Europe/London", "Asia/Tokyo"]
+    )
+    timezones = {tz.split('/')[-1]: tz for tz in custom_selection}
 
-# Footer with auto-refresh info
+# Auto-refresh option
+auto_refresh = st.sidebar.checkbox("Auto Refresh (Every 1 Second)", value=True)
+refresh_interval = st.sidebar.slider("Refresh Interval (seconds)", 1, 10, 1)
+
+# Manual refresh button
+if st.sidebar.button("🔄 Refresh Now"):
+    st.rerun()
+
+# Display current time in all selected timezones
 st.divider()
-col1, col2, col3 = st.columns(3)
 
-with col1:
-    st.metric("Current UTC Time", datetime.now(pytz.UTC).strftime("%H:%M:%S"))
+if timezones:
+    # Create a container for the clocks
+    cols = st.columns(min(3, len(timezones)))
+    
+    for idx, (name, tz_str) in enumerate(timezones.items()):
+        tz = pytz.timezone(tz_str)
+        now = datetime.now(tz)
+        
+        time_str = now.strftime("%H:%M:%S")
+        date_str = now.strftime("%A, %B %d, %Y")
+        utc_offset = now.strftime("%z")
+        
+        # Format UTC offset
+        if utc_offset:
+            utc_offset = f"UTC {utc_offset[:3]}:{utc_offset[3:]}"
+        
+        col = cols[idx % len(cols)]
+        with col:
+            st.markdown(f"""
+                <div class="timezone-card">
+                    <div class="timezone-name">{name}</div>
+                    <div class="time-display">{time_str}</div>
+                    <div class="date-display">{date_str}</div>
+                    <div class="utc-offset">{utc_offset}</div>
+                </div>
+            """, unsafe_allow_html=True)
+else:
+    st.warning("Please select at least one timezone to display")
 
-with col2:
-    selected_count = len(selected_timezones)
-    st.metric("Timezones Selected", selected_count)
+# Auto-refresh using session state
+if auto_refresh:
+    st.markdown(f"""
+        <meta http-equiv="refresh" content="{refresh_interval}">
+    """, unsafe_allow_html=True)
+    st.info(f"🔄 Auto-refreshing every {refresh_interval} second(s)")
 
-with col3:
-    st.info("💡 Use 'Refresh' button to update times manually")
+st.divider()
 
-# Add auto-refresh using Streamlit's session state
+# Footer with timezone info
 st.markdown("""
-<script>
-    setTimeout(function() {
-        window.location.reload();
-    }, 1000);
-</script>
-""", unsafe_allow_html=True)
+### 📌 About
+This digital clock displays the current time across multiple timezones simultaneously.
+You can customize which timezones to display using the sidebar controls.
+
+**Features:**
+- ✅ Real-time updates every second
+- ✅ 12+ preset timezones
+- ✅ Access to all pytz timezones
+- ✅ Shows date and UTC offset
+- ✅ Beautiful responsive grid layout
+""")
